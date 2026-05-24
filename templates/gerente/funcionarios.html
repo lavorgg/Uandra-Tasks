@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% load extras %}
+{% block titulo %}Equipe{% endblock %}
+
+{% block sidebar_nav %}{% include "nav_gerente.html" with pagina="funcionarios" %}{% endblock %}
+{% block nav %}{% include "nav_gerente.html" with pagina="funcionarios" %}{% endblock %}
+{% block acoes_topo %}<button class="btn-icone" onclick="abrirModalAdicionar()" style="background:#FFF7ED;color:#F97316;font-size:22px;font-weight:700">+</button>{% endblock %}
+
+{% block conteudo %}
+<div class="pagina-header">
+  <div class="pagina-titulo">Equipe <small>{{ funcionarios|length }} membros</small></div>
+  <button class="btn-primario" onclick="abrirModalAdicionar()">+ Adicionar Funcionário</button>
+</div>
+
+{% if not funcionarios %}
+<div class="vazio">
+  <div class="icone-vazio">👥</div>
+  <p>Nenhum funcionário cadastrado</p>
+  <small>Clique em "+ Adicionar Funcionário" para começar</small>
+</div>
+{% else %}
+<div class="lista-funcionarios" id="lista-funcionarios">
+{% for f in funcionarios %}
+<div class="card-funcionario animar" id="card-{{ f.id }}">
+  <div class="avatar">{{ f.nome|slice:":1"|upper }}</div>
+  <div class="card-funcionario-info">
+    <div class="card-funcionario-nome">{{ f.nome }}</div>
+    <div class="card-funcionario-codigo">
+      Código: <strong>{{ f.codigo }}</strong>
+      &nbsp;·&nbsp; {{ f.get_cargo_display }}
+      &nbsp;·&nbsp; Meta: <strong>{{ f.meta_mensal }} pts</strong>
+      &nbsp;·&nbsp; Pontos: <strong>{{ f.pontos }}</strong>
+    </div>
+  </div>
+  <div class="card-funcionario-acoes">
+    <button class="btn-azul" style="padding:7px 12px" onclick='abrirModalEditar({{ f.id }}, {{ f.nome|tojson }}, "{{ f.codigo }}", "{{ f.cargo }}", {{ f.meta_mensal }})' title="Editar">✏️ Editar</button>
+    <button class="btn-perigo" style="padding:7px 12px" onclick="removerFuncionario({{ f.id }}, '{{ f.nome|escapejs }}')" title="Remover">🗑</button>
+  </div>
+</div>
+{% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block modais %}
+<!-- Modal adicionar -->
+<div class="modal-fundo" id="modal-adicionar">
+  <div class="modal-caixa">
+    <div class="modal-alca"></div>
+    <div class="modal-titulo">Novo Funcionário</div>
+    <div class="campo"><label>Nome completo</label><input type="text" id="add-nome" placeholder="Ex: João da Silva"></div>
+    <div style="display:flex;gap:12px">
+      <div class="campo" style="flex:1"><label>Código de acesso</label><input type="text" id="add-codigo" placeholder="Ex: 10"></div>
+      <div class="campo" style="flex:1">
+        <label>Cargo</label>
+        <select id="add-cargo">
+          <option value="funcionario">Funcionário</option>
+          {% if eh_dono %}<option value="gerente">Gerente</option>{% endif %}
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px">
+      <div class="campo" style="flex:1"><label>Senha (data nasc.)</label><input type="text" id="add-senha" placeholder="Ex: 01011990"></div>
+      <div class="campo" style="flex:1"><label>Meta mensal (pts)</label><input type="number" id="add-meta" value="100" min="1"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn-primario" style="flex:1;justify-content:center" onclick="adicionarFuncionario()">✅ Adicionar</button>
+      <button class="btn-secundario" onclick="fecharModal('modal-adicionar')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal editar -->
+<div class="modal-fundo" id="modal-editar">
+  <div class="modal-caixa">
+    <div class="modal-alca"></div>
+    <div class="modal-titulo">Editar Funcionário</div>
+    <input type="hidden" id="edit-id">
+    <div class="campo"><label>Nome completo</label><input type="text" id="edit-nome"></div>
+    <div style="display:flex;gap:12px">
+      <div class="campo" style="flex:1"><label>Código de acesso</label><input type="text" id="edit-codigo"></div>
+      <div class="campo" style="flex:1">
+        <label>Cargo</label>
+        <select id="edit-cargo">
+          <option value="funcionario">Funcionário</option>
+          {% if eh_dono %}<option value="gerente">Gerente</option>{% endif %}
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px">
+      <div class="campo" style="flex:1"><label>Nova senha (opcional)</label><input type="text" id="edit-senha" placeholder="Deixe vazio para manter"></div>
+      <div class="campo" style="flex:1"><label>Meta mensal (pts)</label><input type="number" id="edit-meta" min="1"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn-azul" style="flex:1;justify-content:center" onclick="salvarEdicao()">💾 Salvar Alterações</button>
+      <button class="btn-secundario" onclick="fecharModal('modal-editar')">Cancelar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function abrirModalAdicionar() { document.getElementById('modal-adicionar').classList.add('aberto'); }
+function abrirModalEditar(id, nome, codigo, cargo, meta) {
+  document.getElementById('edit-id').value = id;
+  document.getElementById('edit-nome').value = nome;
+  document.getElementById('edit-codigo').value = codigo;
+  document.getElementById('edit-cargo').value = cargo;
+  document.getElementById('edit-meta').value = meta;
+  document.getElementById('edit-senha').value = '';
+  document.getElementById('modal-editar').classList.add('aberto');
+}
+function fecharModal(id) { document.getElementById(id).classList.remove('aberto'); }
+
+async function adicionarFuncionario() {
+  const nome  = document.getElementById('add-nome').value.trim();
+  const codigo = document.getElementById('add-codigo').value.trim();
+  const cargo  = document.getElementById('add-cargo').value;
+  const senha  = document.getElementById('add-senha').value.trim();
+  const meta   = document.getElementById('add-meta').value;
+  if (!nome || !codigo || !senha) { mostrarToast('Preencha todos os campos obrigatórios.', 'erro'); return; }
+  const r = await postJson('/gerente/funcionarios/adicionar/', { nome, codigo, cargo, senha, meta_mensal: meta });
+  if (r.ok) { mostrarToast('Funcionário adicionado!', 'sucesso'); fecharModal('modal-adicionar'); setTimeout(() => location.reload(), 1000); }
+  else mostrarToast(r.erro || 'Erro ao adicionar.', 'erro');
+}
+
+async function salvarEdicao() {
+  const id = document.getElementById('edit-id').value;
+  const dados = {
+    nome: document.getElementById('edit-nome').value.trim(),
+    codigo: document.getElementById('edit-codigo').value.trim(),
+    cargo: document.getElementById('edit-cargo').value,
+    meta_mensal: document.getElementById('edit-meta').value,
+    senha: document.getElementById('edit-senha').value.trim(),
+  };
+  const r = await postJson(`/gerente/funcionarios/${id}/editar/`, dados);
+  if (r.ok) { mostrarToast('Dados atualizados!', 'sucesso'); fecharModal('modal-editar'); setTimeout(() => location.reload(), 1000); }
+  else mostrarToast(r.erro || 'Erro ao salvar.', 'erro');
+}
+
+async function removerFuncionario(id, nome) {
+  if (!confirm(`Desativar o funcionário "${nome}"?`)) return;
+  const r = await postJson(`/gerente/funcionarios/${id}/remover/`, {});
+  if (r.ok) { mostrarToast('Funcionário removido.', 'sucesso'); document.getElementById(`card-${id}`)?.remove(); }
+  else mostrarToast(r.erro || 'Sem permissão.', 'erro');
+}
+
+document.querySelectorAll('.modal-fundo').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('aberto'); }));
+</script>
+{% endblock %}

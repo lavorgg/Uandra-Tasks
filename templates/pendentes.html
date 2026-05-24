@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block titulo %}Minhas Tarefas{% endblock %}
+
+{% block sidebar_nav %}{% include "nav_funcionario.html" with pagina="pendentes" %}{% endblock %}
+{% block nav %}{% include "nav_funcionario.html" with pagina="pendentes" %}{% endblock %}
+
+{% block conteudo %}
+<div class="pagina-header">
+  <div class="pagina-titulo">Minhas Tarefas <small>{{ tarefas|length }} em andamento</small></div>
+</div>
+
+{% if not tarefas %}
+<div class="vazio">
+  <div class="icone-vazio">✅</div>
+  <p>Nenhuma tarefa pendente</p>
+  <small>Aceite tarefas na aba "Tarefas" para vê-las aqui</small>
+</div>
+{% else %}
+<div class="grade-tarefas">
+{% for t in tarefas %}
+<div class="card-tarefa animar" onclick="abrirTarefa({{ t.id }}, '{{ t.titulo|escapejs }}', '{{ t.descricao|escapejs }}', {{ t.pontos }}, '{{ t.prazo|date:'d/m/Y H:i' }}', '{{ t.status }}')">
+  <div class="card-titulo">{{ t.titulo }}</div>
+  <div class="card-desc">{{ t.descricao|truncatechars:120 }}</div>
+  <div class="card-meta">
+    <span class="tag tag-pontos">⭐ {{ t.pontos }} pts</span>
+    <span class="tag tag-prazo">📅 {{ t.prazo|date:"d/m H:i" }}</span>
+    {% if t.status == 'aceita' %}
+    <span class="tag tag-status-aceita">🔄 Em andamento</span>
+    {% else %}
+    <span class="tag tag-status-pendente">⏳ Aguardando aprovação</span>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block modais %}
+<div class="modal-fundo" id="modal-tarefa">
+  <div class="modal-caixa">
+    <div class="modal-alca"></div>
+    <div class="modal-titulo" id="modal-titulo"></div>
+    <div style="font-size:14px;color:#64748B;line-height:1.6;margin-bottom:16px" id="modal-desc"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px" id="modal-tags"></div>
+    <div id="modal-acoes" style="display:flex;gap:10px">
+      <button class="btn-sucesso" style="flex:1;justify-content:center" id="btn-finalizar" onclick="solicitarFinalizacao()">🏁 Finalizar Tarefa</button>
+      <button class="btn-secundario" onclick="fecharModal()">Fechar</button>
+    </div>
+    <div id="aviso-pendente" style="display:none;background:#FEF9C3;border:1px solid #FDE68A;border-radius:10px;padding:12px 14px;font-size:13px;color:#92400E;margin-top:8px">
+      ⏳ Solicitação enviada — aguardando aprovação do gerente.
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let tarefaAtual = null;
+function abrirTarefa(id, titulo, desc, pontos, prazo, status) {
+  tarefaAtual = id;
+  document.getElementById('modal-titulo').textContent = titulo;
+  document.getElementById('modal-desc').textContent = desc;
+  document.getElementById('modal-tags').innerHTML = `<span class="tag tag-pontos">⭐ ${pontos} pontos</span><span class="tag tag-prazo">📅 ${prazo}</span>`;
+  document.getElementById('btn-finalizar').style.display = status === 'aceita' ? 'flex' : 'none';
+  document.getElementById('aviso-pendente').style.display = status !== 'aceita' ? 'block' : 'none';
+  document.getElementById('modal-tarefa').classList.add('aberto');
+}
+function fecharModal() { document.getElementById('modal-tarefa').classList.remove('aberto'); tarefaAtual = null; }
+async function solicitarFinalizacao() {
+  if (!tarefaAtual) return;
+  const r = await postJson(`/pendentes/${tarefaAtual}/solicitar/`, {});
+  if (r.ok) { mostrarToast('Solicitação enviada ao gerente!', 'sucesso'); fecharModal(); setTimeout(() => location.reload(), 1000); }
+  else mostrarToast('Erro ao solicitar.', 'erro');
+}
+document.getElementById('modal-tarefa').addEventListener('click', e => { if (e.target === e.currentTarget) fecharModal(); });
+</script>
+{% endblock %}

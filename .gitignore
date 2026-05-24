@@ -1,0 +1,22 @@
+# Banco de dados — não sobe para o servidor
+db.sqlite3
+
+# Ambiente virtual — cada servidor instala o seu
+venv/
+env/
+.venv/
+
+# Arquivos temporários do Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Arquivos estáticos gerados (o servidor gera automaticamente)
+staticfiles/
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+
+# Variáveis de ambiente (segurança)
+.env

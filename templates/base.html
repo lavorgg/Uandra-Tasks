@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1E40AF">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Uandra Tasks">
+  <link rel="manifest" href="/static/manifest.json">
+  <title>{% block titulo %}Uandra Tasks{% endblock %}</title>
+  <link rel="stylesheet" href="/static/estilo.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-wrapper">
+
+  <!-- ── Sidebar (desktop) ────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="icone-logo">⚡</div>
+      <div class="nome-app">Uandra <span>Tasks</span></div>
+    </div>
+
+    <!-- Perfil clicável na sidebar -->
+    <a href="/perfil/" class="sidebar-perfil" style="text-decoration:none;transition:background 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">
+      <div class="avatar-sm">{{ funcionario.nome|slice:":1"|upper }}</div>
+      <div class="perfil-info">
+        <div class="perfil-nome">{{ funcionario.nome }}</div>
+        <div class="perfil-cargo">{{ funcionario.get_cargo_display }} · Editar perfil →</div>
+      </div>
+    </a>
+
+    <nav class="sidebar-nav">
+      {% block sidebar_nav %}{% endblock %}
+    </nav>
+
+    <div class="sidebar-rodape">
+      <a href="/sair/">
+        <span style="font-size:16px">🚪</span> Sair da conta
+      </a>
+    </div>
+  </aside>
+
+  <!-- ── Topbar (mobile) ──────────────────────── -->
+  <header class="topo">
+    <div class="topo-logo">
+      <div class="icone-logo">⚡</div>
+      <div class="nome-app">Uandra <span>Tasks</span></div>
+    </div>
+    <div class="topo-acoes">
+      {% block acoes_topo %}{% endblock %}
+      <a href="/perfil/" class="btn-icone" title="Meu Perfil">👤</a>
+      <a href="/sair/"   class="btn-icone" title="Sair">🚪</a>
+    </div>
+  </header>
+
+  <!-- ── Conteúdo principal ────────────────────── -->
+  <main class="conteudo">
+    {% block conteudo %}{% endblock %}
+  </main>
+
+  <!-- ── Nav inferior (mobile) ────────────────── -->
+  <nav class="nav-inferior">
+    {% block nav %}{% endblock %}
+  </nav>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+{% block modais %}{% endblock %}
+
+<script>
+function mostrarToast(msg, tipo = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast mostrar ' + tipo;
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+async function postJson(url, dados) {
+  const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+    body: JSON.stringify(dados)
+  });
+  return r.json();
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

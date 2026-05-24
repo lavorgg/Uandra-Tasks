@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block titulo %}Meu Perfil{% endblock %}
+
+{% block sidebar_nav %}
+  {% if funcionario.cargo == 'funcionario' %}
+    {% include "nav_funcionario.html" with pagina="" %}
+  {% else %}
+    {% include "nav_gerente.html" with pagina="" %}
+  {% endif %}
+{% endblock %}
+
+{% block nav %}
+  {% if funcionario.cargo == 'funcionario' %}
+    {% include "nav_funcionario.html" with pagina="" %}
+  {% else %}
+    {% include "nav_gerente.html" with pagina="" %}
+  {% endif %}
+{% endblock %}
+
+{% block conteudo %}
+<div class="pagina-header">
+  <div class="pagina-titulo">Meu Perfil</div>
+</div>
+
+<div style="max-width:520px;margin:0 auto">
+
+  <!-- Card de identidade -->
+  <div class="animar" style="background:linear-gradient(135deg,var(--azul),#1D4ED8);border-radius:var(--radius);padding:28px;margin-bottom:24px;color:white;display:flex;align-items:center;gap:20px">
+    <div style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;font-family:'Poppins',sans-serif;font-weight:800;font-size:26px;flex-shrink:0">
+      {{ funcionario.nome|slice:":1"|upper }}
+    </div>
+    <div>
+      <div style="font-family:'Poppins',sans-serif;font-weight:700;font-size:20px" id="exibir-nome">{{ funcionario.nome }}</div>
+      <div style="font-size:13px;opacity:0.75;margin-top:3px">{{ funcionario.get_cargo_display }} · Código: {{ funcionario.codigo }}</div>
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <span style="background:rgba(255,255,255,0.15);border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700">
+          ⭐ {{ funcionario.pontos }} pontos
+        </span>
+        <span style="background:rgba(255,255,255,0.15);border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700">
+          🎯 Meta: {{ funcionario.meta_mensal }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formulário -->
+  <div class="animar-2" style="background:var(--branco);border-radius:var(--radius);padding:28px;box-shadow:var(--sombra-card);border:1px solid var(--cinza-3)">
+
+    <div style="font-family:'Poppins',sans-serif;font-weight:700;font-size:15px;color:var(--texto);margin-bottom:20px;display:flex;align-items:center;gap:8px">
+      ✏️ Editar Informações
+    </div>
+
+    <div class="campo">
+      <label>Nome completo</label>
+      <input type="text" id="campo-nome" value="{{ funcionario.nome }}" placeholder="Seu nome completo">
+    </div>
+
+    <div style="height:1px;background:var(--cinza-3);margin:20px 0"></div>
+
+    <div style="font-family:'Poppins',sans-serif;font-weight:700;font-size:14px;color:var(--texto);margin-bottom:16px;display:flex;align-items:center;gap:8px">
+      🔒 Alterar Senha
+    </div>
+
+    <div class="campo">
+      <label>Senha atual <span style="color:#DC2626">*</span></label>
+      <div style="position:relative">
+        <input type="password" id="campo-senha-atual" placeholder="Digite sua senha atual" style="padding-right:44px">
+        <button type="button" onclick="toggleSenha('campo-senha-atual', this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--cinza-4)">👁</button>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label>Nova senha <span style="color:var(--cinza-4);font-weight:400;text-transform:none;letter-spacing:0">(deixe vazio para não alterar)</span></label>
+      <div style="position:relative">
+        <input type="password" id="campo-nova-senha" placeholder="Mínimo 6 caracteres" style="padding-right:44px">
+        <button type="button" onclick="toggleSenha('campo-nova-senha', this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--cinza-4)">👁</button>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label>Confirmar nova senha</label>
+      <input type="password" id="campo-confirmar-senha" placeholder="Repita a nova senha">
+    </div>
+
+    <!-- Alerta de erro/sucesso inline -->
+    <div id="alerta" style="display:none;border-radius:10px;padding:12px 14px;font-size:13.5px;font-weight:600;margin-bottom:16px"></div>
+
+    <button class="btn-primario" style="width:100%;justify-content:center;margin-top:4px" onclick="salvarPerfil()">
+      💾 Salvar Alterações
+    </button>
+
+    <a href="javascript:history.back()" class="btn-secundario" style="width:100%;justify-content:center;text-align:center;margin-top:10px;display:block;text-decoration:none">
+      Voltar
+    </a>
+  </div>
+
+  <!-- Info sobre o código -->
+  <div class="animar-3" style="background:var(--azul-suave);border:1px solid var(--azul-claro);border-radius:var(--radius-sm);padding:14px 16px;margin-top:16px;font-size:13px;color:var(--azul);line-height:1.6">
+    ℹ️ <strong>Código de acesso</strong> e <strong>cargo</strong> só podem ser alterados pelo gerente ou dono do sistema.
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleSenha(campoId, btn) {
+  const campo = document.getElementById(campoId);
+  if (campo.type === 'password') {
+    campo.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    campo.type = 'password';
+    btn.textContent = '👁';
+  }
+}
+
+function mostrarAlerta(msg, tipo) {
+  const el = document.getElementById('alerta');
+  el.style.display = 'block';
+  el.textContent = (tipo === 'erro' ? '⚠️ ' : '✅ ') + msg;
+  el.style.background = tipo === 'erro' ? '#FEF2F2' : '#F0FDF4';
+  el.style.color = tipo === 'erro' ? '#DC2626' : '#16A34A';
+  el.style.border = tipo === 'erro' ? '1px solid #FECACA' : '1px solid #BBF7D0';
+  if (tipo === 'sucesso') setTimeout(() => el.style.display = 'none', 4000);
+}
+
+async function salvarPerfil() {
+  const nome = document.getElementById('campo-nome').value.trim();
+  const senhaAtual = document.getElementById('campo-senha-atual').value;
+  const novaSenha = document.getElementById('campo-nova-senha').value;
+  const confirmar = document.getElementById('campo-confirmar-senha').value;
+
+  if (!nome) { mostrarAlerta('Informe seu nome.', 'erro'); return; }
+  if (!senhaAtual) { mostrarAlerta('Informe sua senha atual para confirmar as alterações.', 'erro'); return; }
+  if (novaSenha && novaSenha !== confirmar) { mostrarAlerta('A nova senha e a confirmação não coincidem.', 'erro'); return; }
+
+  const r = await postJson('/perfil/salvar/', {
+    nome,
+    senha_atual: senhaAtual,
+    nova_senha: novaSenha,
+  });
+
+  if (r.ok) {
+    document.getElementById('exibir-nome').textContent = r.nome;
+    document.getElementById('campo-senha-atual').value = '';
+    document.getElementById('campo-nova-senha').value = '';
+    document.getElementById('campo-confirmar-senha').value = '';
+    mostrarAlerta('Perfil atualizado com sucesso!', 'sucesso');
+    mostrarToast('Perfil salvo!', 'sucesso');
+  } else {
+    mostrarAlerta(r.erro || 'Erro ao salvar.', 'erro');
+  }
+}
+</script>
+{% endblock %}

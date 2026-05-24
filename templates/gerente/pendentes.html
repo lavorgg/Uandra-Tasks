@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block titulo %}Aprovações Pendentes{% endblock %}
+
+{% block sidebar_nav %}{% include "nav_gerente.html" with pagina="pendentes" %}{% endblock %}
+{% block nav %}{% include "nav_gerente.html" with pagina="pendentes" %}{% endblock %}
+
+{% block conteudo %}
+<div class="pagina-header">
+  <div class="pagina-titulo">Aprovações Pendentes <small>{{ tarefas|length }} aguardando</small></div>
+</div>
+
+{% if not tarefas %}
+<div class="vazio">
+  <div class="icone-vazio">🎉</div>
+  <p>Tudo em dia!</p>
+  <small>Nenhuma tarefa aguardando sua aprovação</small>
+</div>
+{% else %}
+<div class="grade-tarefas">
+{% for t in tarefas %}
+<div class="card-tarefa animar" onclick="abrirTarefa({{ t.id }}, '{{ t.titulo|escapejs }}', '{{ t.descricao|escapejs }}', {{ t.pontos }}, '{{ t.aceita_por.nome|escapejs }}')">
+  <div class="card-titulo">{{ t.titulo }}</div>
+  <div class="card-desc">{{ t.descricao|truncatechars:110 }}</div>
+  <div class="card-meta">
+    <span class="tag tag-pontos">⭐ {{ t.pontos }} pts</span>
+    <span class="tag tag-status-pendente">⏳ Aguardando</span>
+    <span class="tag tag-autor">👤 {{ t.aceita_por.nome }}</span>
+  </div>
+</div>
+{% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block modais %}
+<div class="modal-fundo" id="modal-tarefa">
+  <div class="modal-caixa">
+    <div class="modal-alca"></div>
+    <div class="modal-titulo" id="modal-titulo"></div>
+    <div style="font-size:14px;color:#64748B;line-height:1.6;margin-bottom:16px" id="modal-desc"></div>
+    <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:14px;margin-bottom:16px">
+      <div style="font-size:11px;font-weight:800;color:#16A34A;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Solicitado por</div>
+      <div style="font-size:15px;font-weight:700;color:#1E293B" id="modal-funcionario"></div>
+    </div>
+    <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:12px 14px;margin-bottom:20px;font-size:13px;color:#92400E">
+      ⚠️ Ao finalizar, os pontos serão creditados automaticamente ao funcionário.
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-sucesso" style="flex:1;justify-content:center;font-size:14.5px" onclick="finalizarTarefa()">✅ Finalizar Tarefa</button>
+      <button class="btn-secundario" onclick="fecharModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let tarefaAtual = null;
+function abrirTarefa(id, titulo, desc, pontos, funcionario) {
+  tarefaAtual = id;
+  document.getElementById('modal-titulo').textContent = titulo;
+  document.getElementById('modal-desc').textContent = desc;
+  document.getElementById('modal-funcionario').textContent = `${funcionario} · ${pontos} pts a receber`;
+  document.getElementById('modal-tarefa').classList.add('aberto');
+}
+function fecharModal() { document.getElementById('modal-tarefa').classList.remove('aberto'); tarefaAtual = null; }
+async function finalizarTarefa() {
+  if (!tarefaAtual) return;
+  const r = await postJson(`/gerente/pendentes/${tarefaAtual}/finalizar/`, {});
+  if (r.ok) { mostrarToast('Tarefa finalizada! Pontos creditados.', 'sucesso'); fecharModal(); setTimeout(() => location.reload(), 1000); }
+  else mostrarToast('Erro ao finalizar.', 'erro');
+}
+document.getElementById('modal-tarefa').addEventListener('click', e => { if (e.target === e.currentTarget) fecharModal(); });
+</script>
+{% endblock %}
