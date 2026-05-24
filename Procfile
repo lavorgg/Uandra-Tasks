@@ -1,1 +1,1 @@
-web: python manage.py migrate --noinput && python manage.py collectstatic --noinput && python seed.py && gunicorn uandra_tasks.wsgi --bind 0.0.0.0:$PORT
+web: python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn uandra_tasks.wsgi --bind 0.0.0.0:$PORT
