@@ -115,4 +115,4 @@ SECRET_KEY = 'troque-por-chave-segura'
 
 ---
 
-*Uandra Tasks © 2024 — Todos os direitos reservados*
+*Uandra Tasks © 2026 — Todos os direitos reservados*
