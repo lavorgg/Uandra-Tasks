@@ -9,6 +9,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'uandra-dev-key-troque-em-producao')
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = ['*']
+CSRF_TRUSTED_ORIGINS = ['https://uandra-tasks.up.railway.app']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
