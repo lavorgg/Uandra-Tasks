@@ -3,10 +3,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
-from .models import Funcionario, Tarefa, RemocaoPontos
+from .models import Funcionario, Tarefa, TarefaRecorrente, RemocaoPontos, AdicaoPontos
 
-
-# ─── Sessão ───────────────────────────────────────────────────────────────────
 
 def login_view(request):
     if request.session.get('funcionario_id'):
@@ -14,15 +12,16 @@ def login_view(request):
     erro = None
     if request.method == 'POST':
         codigo = request.POST.get('codigo', '').strip()
-        senha = request.POST.get('senha', '').strip()
+        senha  = request.POST.get('senha', '').strip()
         try:
             funcionario = Funcionario.objects.get(codigo=codigo, ativo=True)
             if funcionario.verificar_senha(senha):
+                _expirar_tarefas_vencidas()
+                _gerar_tarefas_recorrentes()
                 request.session['funcionario_id'] = funcionario.id
                 request.session['cargo'] = funcionario.cargo
                 return _redirecionar_por_cargo(request)
-            else:
-                erro = 'Código ou senha inválidos.'
+            erro = 'Código ou senha inválidos.'
         except Funcionario.DoesNotExist:
             erro = 'Código ou senha inválidos.'
     return render(request, 'login.html', {'erro': erro})
@@ -67,17 +66,47 @@ def _requer_gerente(request):
 
 
 def _pode_gerenciar(gerente, alvo):
-    """Verifica se um gerente pode gerenciar determinado funcionário.
-    Gerentes não podem tocar em donos nem em outros gerentes acima deles."""
     if gerente.cargo == 'dono':
         return True
-    # Gerente só pode gerenciar funcionários comuns
     if alvo.cargo in ('dono', 'gerente'):
         return False
     return True
 
 
-# ─── Funcionário ──────────────────────────────────────────────────────────────
+def _expirar_tarefas_vencidas():
+    agora = timezone.now()
+    Tarefa.objects.filter(status='disponivel', prazo__lt=agora).update(status='expirada')
+
+
+def _gerar_tarefas_recorrentes():
+    agora = timezone.now()
+    hoje = agora.date()
+    dia_semana = hoje.weekday()
+
+    for recorrente in TarefaRecorrente.objects.filter(ativa=True):
+        if dia_semana not in recorrente.get_dias_lista():
+            continue
+        ja_existe = Tarefa.objects.filter(
+            recorrente=recorrente,
+            criado_em__date=hoje
+        ).exists()
+        if ja_existe:
+            continue
+        from datetime import datetime
+        prazo = timezone.make_aware(
+            datetime.combine(hoje, recorrente.horario_limite)
+        )
+        if prazo > agora:
+            Tarefa.objects.create(
+                titulo=recorrente.titulo,
+                descricao=recorrente.descricao,
+                pontos=recorrente.pontos,
+                prazo=prazo,
+                criado_por=recorrente.criado_por,
+                recorrente=recorrente,
+                status='disponivel',
+            )
+
 
 def tarefas_view(request):
     f, r = _requer_login(request)
@@ -85,6 +114,8 @@ def tarefas_view(request):
         return r
     if f.cargo in ('dono', 'gerente'):
         return redirect('gerente_tarefas')
+    _expirar_tarefas_vencidas()
+    _gerar_tarefas_recorrentes()
     tarefas = Tarefa.objects.filter(status='disponivel').select_related('criado_por')
     return render(request, 'tarefas.html', {'funcionario': f, 'tarefas': tarefas})
 
@@ -133,24 +164,35 @@ def relatorio_view(request):
         aceita_por=f, status='finalizada',
         finalizado_em__year=hoje.year, finalizado_em__month=hoje.month
     )
-    pontos_removidos = RemocaoPontos.objects.filter(funcionario=f)
-    total_removido = sum(r.pontos_removidos for r in pontos_removidos)
+    remocoes  = RemocaoPontos.objects.filter(funcionario=f)
+    adicoes   = AdicaoPontos.objects.filter(funcionario=f)
+    total_removido   = sum(r.pontos_removidos for r in remocoes)
+    total_adicionado = sum(a.pontos_adicionados for a in adicoes)
     return render(request, 'relatorio.html', {
         'funcionario': f,
         'tarefas_mes': tarefas_mes,
         'total_removido': total_removido,
-        'remocoes': pontos_removidos,
+        'total_adicionado': total_adicionado,
+        'remocoes': remocoes,
+        'adicoes': adicoes,
     })
 
-
-# ─── Gerente ──────────────────────────────────────────────────────────────────
 
 def gerente_tarefas_view(request):
     g, r = _requer_gerente(request)
     if not g:
         return r
-    tarefas = Tarefa.objects.filter(status='disponivel').select_related('criado_por')
-    return render(request, 'gerente/tarefas.html', {'funcionario': g, 'tarefas': tarefas})
+    _expirar_tarefas_vencidas()
+    _gerar_tarefas_recorrentes()
+    from .models import DIAS_SEMANA
+    tarefas     = Tarefa.objects.filter(status='disponivel').select_related('criado_por')
+    recorrentes = TarefaRecorrente.objects.filter(ativa=True).select_related('criado_por')
+    return render(request, 'gerente/tarefas.html', {
+        'funcionario': g,
+        'tarefas': tarefas,
+        'recorrentes': recorrentes,
+        'dias_semana': DIAS_SEMANA,
+    })
 
 
 @require_POST
@@ -159,7 +201,7 @@ def criar_tarefa(request):
     if not g:
         return JsonResponse({'erro': 'Sem permissão'}, status=403)
     dados = json.loads(request.body)
-    tarefa = Tarefa.objects.create(
+    Tarefa.objects.create(
         titulo=dados['titulo'],
         descricao=dados['descricao'],
         pontos=int(dados['pontos']),
@@ -167,7 +209,7 @@ def criar_tarefa(request):
         criado_por=g,
         status='disponivel',
     )
-    return JsonResponse({'ok': True, 'id': tarefa.id})
+    return JsonResponse({'ok': True})
 
 
 @require_POST
@@ -177,6 +219,35 @@ def excluir_tarefa(request, tarefa_id):
         return JsonResponse({'erro': 'Sem permissão'}, status=403)
     tarefa = get_object_or_404(Tarefa, id=tarefa_id)
     tarefa.delete()
+    return JsonResponse({'ok': True})
+
+
+@require_POST
+def criar_tarefa_recorrente(request):
+    g, r = _requer_gerente(request)
+    if not g:
+        return JsonResponse({'erro': 'Sem permissão'}, status=403)
+    dados = json.loads(request.body)
+    dias = ','.join(dados['dias_semana'])
+    rec = TarefaRecorrente.objects.create(
+        titulo=dados['titulo'],
+        descricao=dados['descricao'],
+        pontos=int(dados['pontos']),
+        dias_semana=dias,
+        horario_limite=dados['horario_limite'],
+        criado_por=g,
+    )
+    return JsonResponse({'ok': True, 'id': rec.id})
+
+
+@require_POST
+def excluir_tarefa_recorrente(request, rec_id):
+    g, r = _requer_gerente(request)
+    if not g:
+        return JsonResponse({'erro': 'Sem permissão'}, status=403)
+    rec = get_object_or_404(TarefaRecorrente, id=rec_id)
+    rec.ativa = False
+    rec.save()
     return JsonResponse({'ok': True})
 
 
@@ -207,7 +278,6 @@ def gerente_funcionarios_view(request):
     g, r = _requer_gerente(request)
     if not g:
         return r
-    # Dono vê todos; gerente vê apenas funcionários comuns
     if g.cargo == 'dono':
         funcionarios = Funcionario.objects.filter(ativo=True).exclude(id=g.id)
     else:
@@ -226,7 +296,6 @@ def adicionar_funcionario(request):
         return JsonResponse({'erro': 'Sem permissão'}, status=403)
     dados = json.loads(request.body)
     cargo_solicitado = dados.get('cargo', 'funcionario')
-    # Gerente não pode criar dono nem outro gerente
     if g.cargo == 'gerente' and cargo_solicitado in ('dono', 'gerente'):
         return JsonResponse({'erro': 'Sem permissão para criar este cargo.'}, status=403)
     if Funcionario.objects.filter(codigo=dados['codigo']).exists():
@@ -248,12 +317,10 @@ def editar_funcionario(request, func_id):
     if not g:
         return JsonResponse({'erro': 'Sem permissão'}, status=403)
     f = get_object_or_404(Funcionario, id=func_id)
-    # Gerente não pode editar donos nem outros gerentes
     if not _pode_gerenciar(g, f):
         return JsonResponse({'erro': 'Sem permissão para editar este usuário.'}, status=403)
     dados = json.loads(request.body)
     cargo_novo = dados.get('cargo', f.cargo)
-    # Gerente não pode promover para dono ou gerente
     if g.cargo == 'gerente' and cargo_novo in ('dono', 'gerente'):
         return JsonResponse({'erro': 'Sem permissão para atribuir este cargo.'}, status=403)
     f.nome = dados.get('nome', f.nome)
@@ -272,7 +339,6 @@ def remover_funcionario(request, func_id):
     if not g:
         return JsonResponse({'erro': 'Sem permissão'}, status=403)
     f = get_object_or_404(Funcionario, id=func_id)
-    # Gerente não pode remover donos nem outros gerentes
     if not _pode_gerenciar(g, f):
         return JsonResponse({'erro': 'Sem permissão para remover este usuário.'}, status=403)
     f.ativo = False
@@ -314,19 +380,31 @@ def remover_pontos(request):
     dados = json.loads(request.body)
     f = get_object_or_404(Funcionario, id=dados['funcionario_id'])
     qtd = int(dados['pontos'])
-    motivo = dados['motivo']
     RemocaoPontos.objects.create(
-        funcionario=f,
-        pontos_removidos=qtd,
-        motivo=motivo,
-        removido_por=g,
+        funcionario=f, pontos_removidos=qtd,
+        motivo=dados['motivo'], removido_por=g,
     )
     f.pontos = max(0, f.pontos - qtd)
     f.save()
     return JsonResponse({'ok': True, 'pontos_atuais': f.pontos})
 
 
-# ─── Perfil (todos os cargos) ─────────────────────────────────────────────────
+@require_POST
+def adicionar_pontos(request):
+    g, r = _requer_gerente(request)
+    if not g:
+        return JsonResponse({'erro': 'Sem permissão'}, status=403)
+    dados = json.loads(request.body)
+    f = get_object_or_404(Funcionario, id=dados['funcionario_id'])
+    qtd = int(dados['pontos'])
+    AdicaoPontos.objects.create(
+        funcionario=f, pontos_adicionados=qtd,
+        motivo=dados['motivo'], adicionado_por=g,
+    )
+    f.pontos += qtd
+    f.save()
+    return JsonResponse({'ok': True, 'pontos_atuais': f.pontos})
+
 
 def perfil_view(request):
     f, r = _requer_login(request)
@@ -341,24 +419,17 @@ def salvar_perfil(request):
     if not f:
         return JsonResponse({'erro': 'Não autenticado'}, status=401)
     dados = json.loads(request.body)
-    nome = dados.get('nome', '').strip()
+    nome        = dados.get('nome', '').strip()
     senha_atual = dados.get('senha_atual', '').strip()
-    nova_senha = dados.get('nova_senha', '').strip()
-
+    nova_senha  = dados.get('nova_senha', '').strip()
     if not nome:
         return JsonResponse({'erro': 'O nome não pode ficar vazio.'}, status=400)
-
-    # Valida senha atual antes de qualquer alteração
     if not f.verificar_senha(senha_atual):
         return JsonResponse({'erro': 'Senha atual incorreta.'}, status=400)
-
     f.nome = nome
-
     if nova_senha:
         if len(nova_senha) < 6:
             return JsonResponse({'erro': 'A nova senha precisa ter ao menos 6 caracteres.'}, status=400)
         f.definir_senha(nova_senha)
-
     f.save()
-    # Atualiza o nome na sessão não é necessário, mas garante consistência
     return JsonResponse({'ok': True, 'nome': f.nome})

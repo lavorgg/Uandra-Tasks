@@ -17,7 +17,12 @@
   <div class="info-pontos">
     <div class="stat"><span class="stat-num">{{ funcionario.pontos }}</span><span class="stat-label">Pontos</span></div>
     <div class="stat"><span class="stat-num">{{ tarefas_mes|length }}</span><span class="stat-label">Tarefas</span></div>
-    <div class="stat"><span class="stat-num">{{ total_removido }}</span><span class="stat-label">Removidos</span></div>
+    {% if total_adicionado > 0 %}
+    <div class="stat"><span class="stat-num" style="color:#86efac">+{{ total_adicionado }}</span><span class="stat-label">Bônus</span></div>
+    {% endif %}
+    {% if total_removido > 0 %}
+    <div class="stat"><span class="stat-num" style="color:#fca5a5">-{{ total_removido }}</span><span class="stat-label">Removidos</span></div>
+    {% endif %}
   </div>
 </div>
 
@@ -32,9 +37,25 @@
       <div style="text-align:center;font-size:13px;color:#94A3B8;margin-top:8px" id="texto-meta"></div>
     </div>
 
-    {% if total_removido > 0 %}
+    {% if adicoes %}
     <div style="margin-top:20px">
-      <div class="secao-titulo">Pontos Removidos</div>
+      <div class="secao-titulo" style="color:#16A34A">➕ Pontos Adicionados</div>
+      {% for a in adicoes %}
+      <div class="card-tarefa" style="cursor:default">
+        <div class="card-titulo" style="color:#16A34A">+{{ a.pontos_adicionados }} pontos</div>
+        <div class="card-desc">{{ a.motivo }}</div>
+        <div class="card-meta">
+          <span class="tag" style="background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0">📅 {{ a.criado_em|date:"d/m/Y" }}</span>
+          <span class="tag tag-autor">👤 {{ a.adicionado_por.nome }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if remocoes %}
+    <div style="margin-top:20px">
+      <div class="secao-titulo" style="color:#DC2626">➖ Pontos Removidos</div>
       {% for r in remocoes %}
       <div class="card-tarefa" style="cursor:default">
         <div class="card-titulo" style="color:#DC2626">−{{ r.pontos_removidos }} pontos</div>

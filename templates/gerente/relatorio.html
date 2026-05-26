@@ -10,19 +10,21 @@
 </div>
 
 <div class="layout-2col">
-  <!-- Coluna esquerda: cards de desempenho -->
+  <!-- Coluna esquerda: desempenho -->
   <div class="col-esquerda">
     <div class="secao-titulo animar">Desempenho do Mês</div>
     <div id="cards-funcionarios"></div>
   </div>
 
-  <!-- Coluna direita: remover pontos -->
+  <!-- Coluna direita: adicionar e remover pontos -->
   <div class="col-direita">
-    <div class="secao-titulo animar-2">Remover Pontos</div>
-    <div class="card-tarefa" style="cursor:default">
+
+    <!-- Adicionar pontos -->
+    <div class="secao-titulo animar-2" style="color:var(--azul)">➕ Adicionar Pontos</div>
+    <div class="card-tarefa" style="cursor:default;margin-bottom:20px">
       <div class="campo">
         <label>Funcionário</label>
-        <select id="sel-funcionario">
+        <select id="sel-func-adicionar">
           <option value="">Selecione...</option>
           {% for f in funcionarios %}
           <option value="{{ f.id }}">{{ f.nome }} — {{ f.pontos }} pts</option>
@@ -31,20 +33,46 @@
       </div>
       <div class="campo">
         <label>Quantidade de pontos</label>
-        <input type="number" id="qtd-pontos" placeholder="Ex: 10" min="1">
+        <input type="number" id="qtd-pontos-adicionar" placeholder="Ex: 10" min="1">
       </div>
       <div class="campo">
-        <label>Motivo da remoção</label>
-        <textarea id="motivo-remocao" placeholder="Descreva o motivo..."></textarea>
+        <label>Motivo</label>
+        <textarea id="motivo-adicionar" placeholder="Ex: Bom desempenho no atendimento..."></textarea>
       </div>
-      <button class="btn-perigo" style="width:100%;justify-content:center;padding:12px" onclick="removerPontos()">
-        ⚠️ Confirmar Remoção de Pontos
+      <button class="btn-sucesso" style="width:100%;justify-content:center;padding:12px" onclick="adicionarPontos()">
+        ➕ Confirmar Adição de Pontos
       </button>
     </div>
+
+    <!-- Remover pontos -->
+    <div class="secao-titulo" style="color:#DC2626">➖ Remover Pontos</div>
+    <div class="card-tarefa" style="cursor:default">
+      <div class="campo">
+        <label>Funcionário</label>
+        <select id="sel-func-remover">
+          <option value="">Selecione...</option>
+          {% for f in funcionarios %}
+          <option value="{{ f.id }}">{{ f.nome }} — {{ f.pontos }} pts</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="campo">
+        <label>Quantidade de pontos</label>
+        <input type="number" id="qtd-pontos-remover" placeholder="Ex: 10" min="1">
+      </div>
+      <div class="campo">
+        <label>Motivo</label>
+        <textarea id="motivo-remover" placeholder="Ex: Atraso na entrega da tarefa..."></textarea>
+      </div>
+      <button class="btn-perigo" style="width:100%;justify-content:center;padding:12px" onclick="removerPontos()">
+        ➖ Confirmar Remoção de Pontos
+      </button>
+    </div>
+
   </div>
 </div>
 
-<!-- Gráfico full-width abaixo das colunas -->
+<!-- Gráfico full-width -->
 <div class="grafico-container animar-3" style="margin-top:24px">
   <div style="font-family:'Poppins',sans-serif;font-weight:700;font-size:15px;color:#1E293B;margin-bottom:18px">
     📊 Comparativo de Pontos vs Meta
@@ -57,7 +85,6 @@
 <script>
 const dados = {{ dados_funcionarios|safe }};
 
-// Renderiza cards de desempenho
 const container = document.getElementById('cards-funcionarios');
 if (dados.length === 0) {
   container.innerHTML = '<div class="vazio"><div class="icone-vazio">👥</div><p>Nenhum funcionário cadastrado</p></div>';
@@ -72,7 +99,7 @@ if (dados.length === 0) {
           <div class="avatar">${f.nome[0].toUpperCase()}</div>
           <div style="flex:1;min-width:0">
             <div class="card-funcionario-nome">${f.nome}</div>
-            <div class="card-funcionario-codigo">${f.tarefas} tarefa(s) concluída(s) · Meta: ${f.meta} pts</div>
+            <div class="card-funcionario-codigo">${f.tarefas} tarefa(s) · Meta: ${f.meta} pts</div>
           </div>
           <div style="text-align:right;flex-shrink:0">
             <div style="font-family:'Poppins',sans-serif;font-weight:800;font-size:22px;color:${cor}">${f.pontos}</div>
@@ -91,7 +118,6 @@ if (dados.length === 0) {
   });
 }
 
-// Gráfico
 if (dados.length > 0) {
   const ctx = document.getElementById('grafico-pontos').getContext('2d');
   new Chart(ctx, {
@@ -99,29 +125,13 @@ if (dados.length > 0) {
     data: {
       labels: dados.map(f => f.nome.split(' ')[0]),
       datasets: [
-        {
-          label: 'Pontos atuais',
-          data: dados.map(f => f.pontos),
-          backgroundColor: '#F9731699',
-          borderColor: '#F97316',
-          borderWidth: 2,
-          borderRadius: 8,
-        },
-        {
-          label: 'Meta mensal',
-          data: dados.map(f => f.meta),
-          backgroundColor: '#3B82F630',
-          borderColor: '#3B82F6',
-          borderWidth: 2,
-          borderRadius: 8,
-        }
+        { label: 'Pontos atuais', data: dados.map(f => f.pontos), backgroundColor: '#F9731699', borderColor: '#F97316', borderWidth: 2, borderRadius: 8 },
+        { label: 'Meta mensal',   data: dados.map(f => f.meta),   backgroundColor: '#3B82F630', borderColor: '#3B82F6', borderWidth: 2, borderRadius: 8 }
       ]
     },
     options: {
       responsive: true,
-      plugins: {
-        legend: { position: 'bottom', labels: { font: { family: 'Nunito', size: 12 }, padding: 18 } }
-      },
+      plugins: { legend: { position: 'bottom', labels: { font: { family: 'Nunito', size: 12 }, padding: 18 } } },
       scales: {
         y: { beginAtZero: true, grid: { color: '#F1F5F9' }, ticks: { font: { family: 'Nunito' } } },
         x: { grid: { display: false }, ticks: { font: { family: 'Nunito', weight: '700' } } }
@@ -130,10 +140,21 @@ if (dados.length > 0) {
   });
 }
 
+async function adicionarPontos() {
+  const funcId = document.getElementById('sel-func-adicionar').value;
+  const pontos = document.getElementById('qtd-pontos-adicionar').value;
+  const motivo = document.getElementById('motivo-adicionar').value.trim();
+  if (!funcId || !pontos || !motivo) { mostrarToast('Preencha todos os campos.', 'erro'); return; }
+  if (!confirm(`Adicionar ${pontos} ponto(s)?`)) return;
+  const r = await postJson('/gerente/relatorio/adicionar-pontos/', { funcionario_id: funcId, pontos, motivo });
+  if (r.ok) { mostrarToast(`Pontos adicionados! Saldo atual: ${r.pontos_atuais} pts`, 'sucesso'); setTimeout(() => location.reload(), 1500); }
+  else mostrarToast('Erro ao adicionar pontos.', 'erro');
+}
+
 async function removerPontos() {
-  const funcId = document.getElementById('sel-funcionario').value;
-  const pontos = document.getElementById('qtd-pontos').value;
-  const motivo = document.getElementById('motivo-remocao').value.trim();
+  const funcId = document.getElementById('sel-func-remover').value;
+  const pontos = document.getElementById('qtd-pontos-remover').value;
+  const motivo = document.getElementById('motivo-remover').value.trim();
   if (!funcId || !pontos || !motivo) { mostrarToast('Preencha todos os campos.', 'erro'); return; }
   if (!confirm(`Remover ${pontos} ponto(s)? Esta ação não pode ser desfeita.`)) return;
   const r = await postJson('/gerente/relatorio/remover-pontos/', { funcionario_id: funcId, pontos, motivo });
