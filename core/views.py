@@ -79,24 +79,31 @@ def _expirar_tarefas_vencidas():
 
 
 def _gerar_tarefas_recorrentes():
-    agora = timezone.now()
-    hoje = agora.date()
+    import datetime
+    from django.utils.timezone import localtime
+
+    agora_local = localtime(timezone.now())  # converte para America/Sao_Paulo
+    hoje = agora_local.date()
     dia_semana = hoje.weekday()
 
     for recorrente in TarefaRecorrente.objects.filter(ativa=True):
         if dia_semana not in recorrente.get_dias_lista():
             continue
+
+        # Verifica se já existe tarefa desta recorrente gerada hoje (em horário local)
         ja_existe = Tarefa.objects.filter(
             recorrente=recorrente,
             criado_em__date=hoje
         ).exists()
+
         if ja_existe:
             continue
-        from datetime import datetime
-        prazo = timezone.make_aware(
-            datetime.combine(hoje, recorrente.horario_limite)
-        )
-        if prazo > agora:
+
+        # Monta o prazo com o horário local correto
+        prazo_naive = datetime.datetime.combine(hoje, recorrente.horario_limite)
+        prazo = timezone.make_aware(prazo_naive)
+
+        if prazo > timezone.now():
             Tarefa.objects.create(
                 titulo=recorrente.titulo,
                 descricao=recorrente.descricao,
@@ -115,7 +122,6 @@ def tarefas_view(request):
     if f.cargo in ('dono', 'gerente'):
         return redirect('gerente_tarefas')
     _expirar_tarefas_vencidas()
-    _gerar_tarefas_recorrentes()
     tarefas = Tarefa.objects.filter(status='disponivel').select_related('criado_por')
     return render(request, 'tarefas.html', {'funcionario': f, 'tarefas': tarefas})
 
@@ -183,7 +189,6 @@ def gerente_tarefas_view(request):
     if not g:
         return r
     _expirar_tarefas_vencidas()
-    _gerar_tarefas_recorrentes()
     from .models import DIAS_SEMANA
     tarefas     = Tarefa.objects.filter(status='disponivel').select_related('criado_por')
     recorrentes = TarefaRecorrente.objects.filter(ativa=True).select_related('criado_por')
