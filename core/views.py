@@ -303,8 +303,24 @@ def adicionar_funcionario(request):
     cargo_solicitado = dados.get('cargo', 'funcionario')
     if g.cargo == 'gerente' and cargo_solicitado in ('dono', 'gerente'):
         return JsonResponse({'erro': 'Sem permissão para criar este cargo.'}, status=403)
+
+    # Verifica se já existe funcionário ativo com esse código
     if Funcionario.objects.filter(codigo=dados['codigo'], ativo=True).exists():
         return JsonResponse({'erro': 'Código já cadastrado.'}, status=400)
+
+    # Se existir inativo com o mesmo código, reativa com os novos dados
+    inativo = Funcionario.objects.filter(codigo=dados['codigo'], ativo=False).first()
+    if inativo:
+        inativo.nome = dados['nome']
+        inativo.cargo = cargo_solicitado
+        inativo.meta_mensal = int(dados.get('meta_mensal', 100))
+        inativo.pontos = 0
+        inativo.ativo = True
+        inativo.definir_senha(dados['senha'])
+        inativo.save()
+        return JsonResponse({'ok': True, 'id': inativo.id, 'nome': inativo.nome, 'codigo': inativo.codigo})
+
+    # Se não existir nenhum, cria normalmente
     f = Funcionario(
         nome=dados['nome'],
         codigo=dados['codigo'],
