@@ -303,7 +303,7 @@ def adicionar_funcionario(request):
     cargo_solicitado = dados.get('cargo', 'funcionario')
     if g.cargo == 'gerente' and cargo_solicitado in ('dono', 'gerente'):
         return JsonResponse({'erro': 'Sem permissão para criar este cargo.'}, status=403)
-    if Funcionario.objects.filter(codigo=dados['codigo']).exists():
+    if Funcionario.objects.filter(codigo=dados['codigo'], ativo=True).exists():
         return JsonResponse({'erro': 'Código já cadastrado.'}, status=400)
     f = Funcionario(
         nome=dados['nome'],
