@@ -56,7 +56,7 @@ WSGI_APPLICATION = 'uandra_tasks.wsgi.application'
 
 import dj_database_url
 
-DATABASE_URL = os.environ.get('postgresql://postgres:naFCSuwitxldHDdmAkVOTtIzHchAvwkT@acela.proxy.rlwy.net:59771/railway')
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
 if DATABASE_URL:
     DATABASES = {
