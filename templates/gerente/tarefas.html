@@ -31,6 +31,7 @@
           <span class="tag" style="background:var(--azul-suave);color:var(--azul);border:1px solid var(--azul-claro)">📅 {{ r.get_dias_nomes }}</span>
         </div>
       </div>
+      <button class="btn-azul" style="padding:6px 10px;flex-shrink:0" onclick='abrirEdicaoRecorrente({{ r.id }}, {{ r.titulo|tojson }}, {{ r.descricao|tojson }}, {{ r.pontos }}, "{{ r.horario_limite|time:"H:i" }}", "{{ r.dias_semana }}")'>✏️</button>
       <button class="btn-perigo" style="padding:6px 10px;flex-shrink:0" onclick="excluirRecorrente({{ r.id }}, '{{ r.titulo|escapejs }}')">🗑</button>
     </div>
   </div>
@@ -75,8 +76,56 @@
     <div style="font-size:14px;color:#64748B;line-height:1.6;margin-bottom:16px" id="modal-desc"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px" id="modal-tags"></div>
     <div style="display:flex;gap:10px">
-      <button class="btn-perigo" style="flex:1;justify-content:center" onclick="excluirTarefa()">🗑 Excluir</button>
+      <button class="btn-azul" style="flex:1;justify-content:center" onclick="abrirEdicaoTarefa()">✏️ Editar</button>
+      <button class="btn-perigo" onclick="excluirTarefa()">🗑</button>
       <button class="btn-secundario" onclick="fecharModal('modal-tarefa')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal editar tarefa recorrente -->
+<div class="modal-fundo" id="modal-editar-recorrente">
+  <div class="modal-caixa">
+    <div class="modal-alca"></div>
+    <div class="modal-titulo">✏️ Editar Tarefa Recorrente</div>
+    <input type="hidden" id="edit-rec-id">
+    <div class="campo"><label>Título</label><input type="text" id="edit-rec-titulo"></div>
+    <div class="campo"><label>Descrição</label><textarea id="edit-rec-desc"></textarea></div>
+    <div style="display:flex;gap:12px">
+      <div class="campo" style="flex:1"><label>Pontos</label><input type="number" id="edit-rec-pontos" min="1"></div>
+      <div class="campo" style="flex:1"><label>Horário limite</label><input type="time" id="edit-rec-horario"></div>
+    </div>
+    <div class="campo">
+      <label>Dias da semana</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px" id="edit-dias-wrap">
+        {% for num, nome in dias_semana %}
+        <label style="display:flex;align-items:center;gap:6px;background:var(--cinza-2);border:1.5px solid var(--cinza-3);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s" id="edit-label-dia-{{ num }}">
+          <input type="checkbox" value="{{ num }}" class="edit-check-dia" style="accent-color:var(--laranja);width:15px;height:15px" onchange="toggleEditDia({{ num }})">
+          {{ nome }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn-azul" style="flex:1;justify-content:center" onclick="salvarEdicaoRecorrente()">💾 Salvar</button>
+      <button class="btn-secundario" onclick="fecharModal('modal-editar-recorrente')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-fundo" id="modal-editar-tarefa">
+  <div class="modal-caixa">
+    <div class="modal-alca"></div>
+    <div class="modal-titulo">✏️ Editar Tarefa</div>
+    <div class="campo"><label>Título</label><input type="text" id="edit-titulo"></div>
+    <div class="campo"><label>Descrição</label><textarea id="edit-desc"></textarea></div>
+    <div style="display:flex;gap:12px">
+      <div class="campo" style="flex:1"><label>Pontos</label><input type="number" id="edit-pontos" min="1"></div>
+      <div class="campo" style="flex:1"><label>Prazo</label><input type="datetime-local" id="edit-prazo"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn-azul" style="flex:1;justify-content:center" onclick="salvarEdicaoTarefa()">💾 Salvar</button>
+      <button class="btn-secundario" onclick="fecharModal('modal-editar-tarefa')">Cancelar</button>
     </div>
   </div>
 </div>
@@ -135,6 +184,75 @@
 {% block scripts %}
 <script>
 let tarefaAtual = null;
+
+function abrirEdicaoTarefa() {
+  fecharModal('modal-tarefa');
+  document.getElementById('edit-titulo').value = document.getElementById('modal-titulo').textContent;
+  document.getElementById('edit-desc').value   = document.getElementById('modal-desc').textContent;
+  const tags = document.getElementById('modal-tags');
+  const pontos = tags.querySelector('.tag-pontos').textContent.replace('⭐ ', '').replace(' pontos', '');
+  document.getElementById('edit-pontos').value = pontos;
+  document.getElementById('modal-editar-tarefa').classList.add('aberto');
+}
+
+async function salvarEdicaoTarefa() {
+  const dados = {
+    titulo:   document.getElementById('edit-titulo').value.trim(),
+    descricao: document.getElementById('edit-desc').value.trim(),
+    pontos:   document.getElementById('edit-pontos').value,
+    prazo:    document.getElementById('edit-prazo').value,
+  };
+  if (!dados.titulo || !dados.descricao) { mostrarToast('Preencha título e descrição.', 'erro'); return; }
+  const r = await postJson(`/gerente/tarefas/${tarefaAtual}/editar/`, dados);
+  if (r.ok) { mostrarToast('Tarefa atualizada!', 'sucesso'); fecharModal('modal-editar-tarefa'); setTimeout(() => location.reload(), 1000); }
+  else mostrarToast('Erro ao salvar.', 'erro');
+}
+
+function toggleEditDia(num) {
+  const label = document.getElementById(`edit-label-dia-${num}`);
+  const check = label.querySelector('input');
+  if (check.checked) {
+    label.style.background = 'var(--azul-suave)';
+    label.style.borderColor = 'var(--azul-medio)';
+    label.style.color = 'var(--azul)';
+  } else {
+    label.style.background = 'var(--cinza-2)';
+    label.style.borderColor = 'var(--cinza-3)';
+    label.style.color = '';
+  }
+}
+
+function abrirEdicaoRecorrente(id, titulo, desc, pontos, horario, diasStr) {
+  document.getElementById('edit-rec-id').value      = id;
+  document.getElementById('edit-rec-titulo').value  = titulo;
+  document.getElementById('edit-rec-desc').value    = desc;
+  document.getElementById('edit-rec-pontos').value  = pontos;
+  document.getElementById('edit-rec-horario').value = horario;
+  // Marca os dias corretos
+  const diasAtivos = diasStr.split(',').map(d => d.trim());
+  document.querySelectorAll('.edit-check-dia').forEach(c => {
+    c.checked = diasAtivos.includes(c.value);
+    toggleEditDia(parseInt(c.value));
+  });
+  document.getElementById('modal-editar-recorrente').classList.add('aberto');
+}
+
+async function salvarEdicaoRecorrente() {
+  const id      = document.getElementById('edit-rec-id').value;
+  const titulo  = document.getElementById('edit-rec-titulo').value.trim();
+  const desc    = document.getElementById('edit-rec-desc').value.trim();
+  const pontos  = document.getElementById('edit-rec-pontos').value;
+  const horario = document.getElementById('edit-rec-horario').value;
+  const dias    = [...document.querySelectorAll('.edit-check-dia:checked')].map(c => c.value);
+  if (!titulo || !desc || !horario || dias.length === 0) {
+    mostrarToast('Preencha todos os campos e selecione ao menos um dia.', 'erro'); return;
+  }
+  const r = await postJson(`/gerente/tarefas/recorrente/${id}/editar/`, {
+    titulo, descricao: desc, pontos, horario_limite: horario, dias_semana: dias
+  });
+  if (r.ok) { mostrarToast('Tarefa recorrente atualizada!', 'sucesso'); fecharModal('modal-editar-recorrente'); setTimeout(() => location.reload(), 1000); }
+  else mostrarToast('Erro ao salvar.', 'erro');
+}
 
 function toggleDia(num) {
   const label = document.getElementById(`label-dia-${num}`);

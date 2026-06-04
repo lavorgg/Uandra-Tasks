@@ -16,18 +16,21 @@ urlpatterns = [
     path('pendentes/<int:tarefa_id>/solicitar/', views.solicitar_finalizacao, name='solicitar_finalizacao'),
     path('relatorio/', views.relatorio_view, name='relatorio'),
 
-    # Gerente — tarefas
+    # Gerente — tarefas avulsas
     path('gerente/tarefas/', views.gerente_tarefas_view, name='gerente_tarefas'),
     path('gerente/tarefas/criar/', views.criar_tarefa, name='criar_tarefa'),
     path('gerente/tarefas/<int:tarefa_id>/excluir/', views.excluir_tarefa, name='excluir_tarefa'),
+    path('gerente/tarefas/<int:tarefa_id>/editar/', views.editar_tarefa, name='editar_tarefa'),
 
     # Gerente — tarefas recorrentes
     path('gerente/tarefas/recorrente/criar/', views.criar_tarefa_recorrente, name='criar_tarefa_recorrente'),
     path('gerente/tarefas/recorrente/<int:rec_id>/excluir/', views.excluir_tarefa_recorrente, name='excluir_tarefa_recorrente'),
+    path('gerente/tarefas/recorrente/<int:rec_id>/editar/', views.editar_tarefa_recorrente, name='editar_tarefa_recorrente'),
 
     # Gerente — aprovações
     path('gerente/pendentes/', views.gerente_pendentes_view, name='gerente_pendentes'),
     path('gerente/pendentes/<int:tarefa_id>/finalizar/', views.finalizar_tarefa, name='finalizar_tarefa'),
+    path('gerente/pendentes/<int:tarefa_id>/recusar/', views.recusar_tarefa, name='recusar_tarefa'),
 
     # Gerente — equipe
     path('gerente/funcionarios/', views.gerente_funcionarios_view, name='gerente_funcionarios'),

@@ -278,6 +278,59 @@ def finalizar_tarefa(request, tarefa_id):
         tarefa.aceita_por.save()
     return JsonResponse({'ok': True})
 
+@require_POST
+def editar_tarefa(request, tarefa_id):
+    g, r = _requer_gerente(request)
+    if not g:
+        return JsonResponse({'erro': 'Sem permissão'}, status=403)
+    tarefa = get_object_or_404(Tarefa, id=tarefa_id)
+    dados = json.loads(request.body)
+    tarefa.titulo   = dados.get('titulo', tarefa.titulo)
+    tarefa.descricao = dados.get('descricao', tarefa.descricao)
+    tarefa.pontos   = int(dados.get('pontos', tarefa.pontos))
+    if dados.get('prazo'):
+        tarefa.prazo = dados['prazo']
+    tarefa.save()
+    return JsonResponse({'ok': True})
+
+
+@require_POST
+def editar_tarefa_recorrente(request, rec_id):
+    g, r = _requer_gerente(request)
+    if not g:
+        return JsonResponse({'erro': 'Sem permissão'}, status=403)
+    rec = get_object_or_404(TarefaRecorrente, id=rec_id)
+    dados = json.loads(request.body)
+    rec.titulo      = dados.get('titulo', rec.titulo)
+    rec.descricao   = dados.get('descricao', rec.descricao)
+    rec.pontos      = int(dados.get('pontos', rec.pontos))
+    if dados.get('horario_limite'):
+        rec.horario_limite = dados['horario_limite']
+    if dados.get('dias_semana'):
+        rec.dias_semana = ','.join(dados['dias_semana'])
+    rec.save()
+    return JsonResponse({'ok': True})
+
+
+@require_POST
+def recusar_tarefa(request, tarefa_id):
+    g, r = _requer_gerente(request)
+    if not g:
+        return JsonResponse({'erro': 'Sem permissão'}, status=403)
+    tarefa = get_object_or_404(Tarefa, id=tarefa_id, status='pendente_finalizacao')
+    agora = timezone.now()
+    # Se ainda está no prazo, volta para disponível
+    if tarefa.prazo > agora:
+        tarefa.aceita_por = None
+        tarefa.status = 'disponivel'
+        tarefa.save()
+        return JsonResponse({'ok': True, 'voltou': True})
+    # Se o prazo já passou, expira a tarefa
+    else:
+        tarefa.status = 'expirada'
+        tarefa.save()
+        return JsonResponse({'ok': True, 'voltou': False})
+
 
 def gerente_funcionarios_view(request):
     g, r = _requer_gerente(request)

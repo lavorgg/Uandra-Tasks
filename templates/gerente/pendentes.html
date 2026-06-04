@@ -46,8 +46,12 @@
       ⚠️ Ao finalizar, os pontos serão creditados automaticamente ao funcionário.
     </div>
     <div style="display:flex;gap:10px">
-      <button class="btn-sucesso" style="flex:1;justify-content:center;font-size:14.5px" onclick="finalizarTarefa()">✅ Finalizar Tarefa</button>
+      <button class="btn-sucesso" style="flex:1;justify-content:center;font-size:14.5px" onclick="finalizarTarefa()">✅ Finalizar</button>
+      <button class="btn-perigo" style="flex:1;justify-content:center" onclick="recusarTarefa()">❌ Recusar</button>
       <button class="btn-secundario" onclick="fecharModal()">Fechar</button>
+    </div>
+    <div style="background:#FEF9C3;border:1px solid #FDE68A;border-radius:10px;padding:12px 14px;font-size:13px;color:#92400E;margin-top:8px">
+      ⚠️ Recusar devolve a tarefa para a lista de abertas se o prazo ainda não expirou.
     </div>
   </div>
 </div>
@@ -62,6 +66,19 @@ function abrirTarefa(id, titulo, desc, pontos, funcionario) {
   document.getElementById('modal-desc').textContent = desc;
   document.getElementById('modal-funcionario').textContent = `${funcionario} · ${pontos} pts a receber`;
   document.getElementById('modal-tarefa').classList.add('aberto');
+}
+async function recusarTarefa() {
+  if (!tarefaAtual) return;
+  if (!confirm('Recusar esta finalização?')) return;
+  const r = await postJson(`/gerente/pendentes/${tarefaAtual}/recusar/`, {});
+  if (r.ok) {
+    if (r.voltou) mostrarToast('Tarefa recusada — voltou para a lista de abertas.', 'sucesso');
+    else mostrarToast('Tarefa recusada e encerrada por prazo expirado.', 'erro');
+    fecharModal();
+    setTimeout(() => location.reload(), 1200);
+  } else {
+    mostrarToast('Erro ao recusar.', 'erro');
+  }
 }
 function fecharModal() { document.getElementById('modal-tarefa').classList.remove('aberto'); tarefaAtual = null; }
 async function finalizarTarefa() {
