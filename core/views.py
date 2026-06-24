@@ -122,8 +122,23 @@ def tarefas_view(request):
     if f.cargo in ('dono', 'gerente'):
         return redirect('gerente_tarefas')
     _expirar_tarefas_vencidas()
+
+    # Verifica se atingiu a meta e ainda não foi parabenizado
+    meta_atingida = False
+    if f.pontos >= f.meta_mensal and not request.session.get(f'meta_parabens_{f.id}'):
+        meta_atingida = True
+        # Sobe a meta em 50%
+        f.meta_mensal = int(f.meta_mensal * 1.5)
+        f.save()
+        # Marca na sessão para não mostrar de novo
+        request.session[f'meta_parabens_{f.id}'] = True
+
     tarefas = Tarefa.objects.filter(status='disponivel').select_related('criado_por')
-    return render(request, 'tarefas.html', {'funcionario': f, 'tarefas': tarefas})
+    return render(request, 'tarefas.html', {
+        'funcionario': f,
+        'tarefas': tarefas,
+        'meta_atingida': meta_atingida,
+    })
 
 
 @require_POST

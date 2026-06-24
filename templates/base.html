@@ -91,6 +91,19 @@ async function postJson(url, dados) {
   return r.json();
 }
 
+// Fecha modal ao tocar na barra
+document.querySelectorAll('.modal-alca').forEach(alca => {
+  alca.addEventListener('click', () => {
+    const modal = alca.closest('.modal-fundo');
+    if (modal) modal.classList.remove('aberto');
+  });
+  alca.addEventListener('touchend', () => {
+    const alca2 = alca;
+    const modal = alca2.closest('.modal-fundo');
+    if (modal) modal.classList.remove('aberto');
+  });
+});
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/static/sw.js').catch(() => {});
 }
