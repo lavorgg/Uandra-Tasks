@@ -104,6 +104,18 @@ document.querySelectorAll('.modal-alca').forEach(alca => {
   });
 });
 
+document.querySelectorAll('.modal-alca').forEach(alca => {
+  alca.addEventListener('click', () => {
+    const modal = alca.closest('.modal-fundo');
+    if (modal) modal.classList.remove('aberto');
+  });
+  alca.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    const modal = alca.closest('.modal-fundo');
+    if (modal) modal.classList.remove('aberto');
+  });
+});
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/static/sw.js').catch(() => {});
 }
