@@ -127,7 +127,7 @@ def tarefas_view(request):
     meta_atingida = False
     if f.pontos >= f.meta_mensal and not request.session.get(f'meta_parabens_{f.id}'):
         meta_atingida = True
-        f.meta_mensal = f.meta_mensal + 50
+        f.meta_mensal = int(f.meta_mensal + 50)
         f.save()
         # Marca na sessão para não mostrar de novo
         request.session[f'meta_parabens_{f.id}'] = True
