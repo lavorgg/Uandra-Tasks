@@ -222,33 +222,140 @@
 <script>
 let tarefaAtual = null;
 
-function fecharParabens() {
-  document.getElementById('modal-parabens').classList.remove('aberto');
+function toggleDia(num) {
+  const label = document.getElementById(`label-dia-${num}`);
+  const check = label.querySelector('input');
+  if (check.checked) {
+    label.style.background = 'var(--azul-suave)';
+    label.style.borderColor = 'var(--azul-medio)';
+    label.style.color = 'var(--azul)';
+  } else {
+    label.style.background = 'var(--cinza-2)';
+    label.style.borderColor = 'var(--cinza-3)';
+    label.style.color = '';
+  }
 }
 
-function abrirTarefa(id, titulo, desc, pontos, prazo, autor) {
+function toggleEditDia(num) {
+  const label = document.getElementById(`edit-label-dia-${num}`);
+  const check = label.querySelector('input');
+  if (check.checked) {
+    label.style.background = 'var(--azul-suave)';
+    label.style.borderColor = 'var(--azul-medio)';
+    label.style.color = 'var(--azul)';
+  } else {
+    label.style.background = 'var(--cinza-2)';
+    label.style.borderColor = 'var(--cinza-3)';
+    label.style.color = '';
+  }
+}
+
+function abrirTarefa(id, titulo, desc, pontos, prazo) {
   tarefaAtual = id;
   document.getElementById('modal-titulo').textContent = titulo;
   document.getElementById('modal-desc').textContent = desc;
-  document.getElementById('modal-tags').innerHTML = `
-    <span class="tag tag-pontos">⭐ ${pontos} pontos</span>
-    <span class="tag tag-prazo">📅 ${prazo}</span>
-    <span class="tag tag-autor">👤 ${autor}</span>`;
+  document.getElementById('modal-tags').innerHTML = `<span class="tag tag-pontos">⭐ ${pontos} pontos</span><span class="tag tag-prazo">📅 ${prazo}</span>`;
   document.getElementById('modal-tarefa').classList.add('aberto');
 }
 
-function fecharModal() {
-  document.getElementById('modal-tarefa').classList.remove('aberto');
-  tarefaAtual = null;
+function abrirModalNovaTarefa() { document.getElementById('modal-nova').classList.add('aberto'); }
+function abrirModalRecorrente() { document.getElementById('modal-recorrente').classList.add('aberto'); }
+function fecharModal(id) { document.getElementById(id).classList.remove('aberto'); tarefaAtual = null; }
+
+async function criarTarefa() {
+  const titulo = document.getElementById('novo-titulo').value.trim();
+  const desc   = document.getElementById('novo-desc').value.trim();
+  const pontos = document.getElementById('novo-pontos').value;
+  const prazo  = document.getElementById('novo-prazo').value;
+  if (!titulo || !desc || !prazo) { mostrarToast('Preencha todos os campos.', 'erro'); return; }
+  const r = await postJson('/gerente/tarefas/criar/', { titulo, descricao: desc, pontos, prazo });
+  if (r.ok) { mostrarToast('Tarefa criada!', 'sucesso'); fecharModal('modal-nova'); setTimeout(() => location.reload(), 1000); }
+  else mostrarToast('Erro ao criar.', 'erro');
 }
 
-async function aceitarTarefa() {
+async function criarRecorrente() {
+  const titulo  = document.getElementById('rec-titulo').value.trim();
+  const desc    = document.getElementById('rec-desc').value.trim();
+  const pontos  = document.getElementById('rec-pontos').value;
+  const horario = document.getElementById('rec-horario').value;
+  const dias    = [...document.querySelectorAll('.check-dia:checked')].map(c => c.value);
+  if (!titulo || !desc || !horario || dias.length === 0) {
+    mostrarToast('Preencha todos os campos e selecione ao menos um dia.', 'erro'); return;
+  }
+  const r = await postJson('/gerente/tarefas/recorrente/criar/', {
+    titulo, descricao: desc, pontos, horario_limite: horario, dias_semana: dias
+  });
+  if (r.ok) { mostrarToast('Tarefa recorrente criada!', 'sucesso'); fecharModal('modal-recorrente'); setTimeout(() => location.reload(), 1000); }
+  else mostrarToast('Erro ao criar.', 'erro');
+}
+
+async function excluirTarefa() {
   if (!tarefaAtual) return;
-  const r = await postJson(`/tarefas/${tarefaAtual}/aceitar/`, {});
-  if (r.ok) { mostrarToast('Tarefa aceita!', 'sucesso'); fecharModal(); setTimeout(() => location.reload(), 1000); }
-  else mostrarToast('Erro ao aceitar.', 'erro');
+  if (!confirm('Excluir esta tarefa?')) return;
+  const r = await postJson(`/gerente/tarefas/${tarefaAtual}/excluir/`, {});
+  if (r.ok) { mostrarToast('Tarefa excluída.', 'sucesso'); fecharModal('modal-tarefa'); setTimeout(() => location.reload(), 1000); }
 }
 
-document.getElementById('modal-tarefa').addEventListener('click', e => { if (e.target === e.currentTarget) fecharModal(); });
+async function excluirRecorrente(id, titulo) {
+  if (!confirm(`Desativar a tarefa recorrente "${titulo}"?`)) return;
+  const r = await postJson(`/gerente/tarefas/recorrente/${id}/excluir/`, {});
+  if (r.ok) { mostrarToast('Tarefa recorrente desativada.', 'sucesso'); setTimeout(() => location.reload(), 1000); }
+}
+
+function abrirEdicaoTarefa() {
+  fecharModal('modal-tarefa');
+  document.getElementById('edit-titulo').value = document.getElementById('modal-titulo').textContent;
+  document.getElementById('edit-desc').value   = document.getElementById('modal-desc').textContent;
+  const tags = document.getElementById('modal-tags');
+  const pontos = tags.querySelector('.tag-pontos').textContent.replace('⭐ ', '').replace(' pontos', '');
+  document.getElementById('edit-pontos').value = pontos;
+  document.getElementById('modal-editar-tarefa').classList.add('aberto');
+}
+
+async function salvarEdicaoTarefa() {
+  const dados = {
+    titulo:    document.getElementById('edit-titulo').value.trim(),
+    descricao: document.getElementById('edit-desc').value.trim(),
+    pontos:    document.getElementById('edit-pontos').value,
+    prazo:     document.getElementById('edit-prazo').value,
+  };
+  if (!dados.titulo || !dados.descricao) { mostrarToast('Preencha título e descrição.', 'erro'); return; }
+  const r = await postJson(`/gerente/tarefas/${tarefaAtual}/editar/`, dados);
+  if (r.ok) { mostrarToast('Tarefa atualizada!', 'sucesso'); fecharModal('modal-editar-tarefa'); setTimeout(() => location.reload(), 1000); }
+  else mostrarToast('Erro ao salvar.', 'erro');
+}
+
+function abrirEdicaoRecorrente(id, titulo, desc, pontos, horario, diasStr) {
+  document.getElementById('edit-rec-id').value      = id;
+  document.getElementById('edit-rec-titulo').value  = titulo;
+  document.getElementById('edit-rec-desc').value    = desc;
+  document.getElementById('edit-rec-pontos').value  = pontos;
+  document.getElementById('edit-rec-horario').value = horario;
+  const diasAtivos = diasStr.split(',').map(d => d.trim());
+  document.querySelectorAll('.edit-check-dia').forEach(c => {
+    c.checked = diasAtivos.includes(c.value);
+    toggleEditDia(parseInt(c.value));
+  });
+  document.getElementById('modal-editar-recorrente').classList.add('aberto');
+}
+
+async function salvarEdicaoRecorrente() {
+  const id      = document.getElementById('edit-rec-id').value;
+  const titulo  = document.getElementById('edit-rec-titulo').value.trim();
+  const desc    = document.getElementById('edit-rec-desc').value.trim();
+  const pontos  = document.getElementById('edit-rec-pontos').value;
+  const horario = document.getElementById('edit-rec-horario').value;
+  const dias    = [...document.querySelectorAll('.edit-check-dia:checked')].map(c => c.value);
+  if (!titulo || !desc || !horario || dias.length === 0) {
+    mostrarToast('Preencha todos os campos e selecione ao menos um dia.', 'erro'); return;
+  }
+  const r = await postJson(`/gerente/tarefas/recorrente/${id}/editar/`, {
+    titulo, descricao: desc, pontos, horario_limite: horario, dias_semana: dias
+  });
+  if (r.ok) { mostrarToast('Tarefa recorrente atualizada!', 'sucesso'); fecharModal('modal-editar-recorrente'); setTimeout(() => location.reload(), 1000); }
+  else mostrarToast('Erro ao salvar.', 'erro');
+}
+
+document.querySelectorAll('.modal-fundo').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('aberto'); }));
 </script>
 {% endblock %}

@@ -71,6 +71,11 @@
 {% block scripts %}
 <script>
 let tarefaAtual = null;
+
+function fecharParabens() {
+  document.getElementById('modal-parabens').classList.remove('aberto');
+}
+
 function abrirTarefa(id, titulo, desc, pontos, prazo, autor) {
   tarefaAtual = id;
   document.getElementById('modal-titulo').textContent = titulo;
@@ -81,16 +86,19 @@ function abrirTarefa(id, titulo, desc, pontos, prazo, autor) {
     <span class="tag tag-autor">👤 ${autor}</span>`;
   document.getElementById('modal-tarefa').classList.add('aberto');
 }
+
 function fecharModal() {
   document.getElementById('modal-tarefa').classList.remove('aberto');
   tarefaAtual = null;
 }
+
 async function aceitarTarefa() {
   if (!tarefaAtual) return;
   const r = await postJson(`/tarefas/${tarefaAtual}/aceitar/`, {});
   if (r.ok) { mostrarToast('Tarefa aceita!', 'sucesso'); fecharModal(); setTimeout(() => location.reload(), 1000); }
   else mostrarToast('Erro ao aceitar.', 'erro');
 }
+
 document.getElementById('modal-tarefa').addEventListener('click', e => { if (e.target === e.currentTarget) fecharModal(); });
 </script>
 {% endblock %}
