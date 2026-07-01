@@ -36,6 +36,8 @@ class Funcionario(models.Model):
     meta_mensal = models.IntegerField(default=100)
     ativo = models.BooleanField(default=True)
     criado_em = models.DateTimeField(auto_now_add=True)
+    # Guarda o mês/ano em que os pontos atuais foram contabilizados (ex: "2026-06")
+    mes_referencia = models.CharField(max_length=7, blank=True, null=True)
 
     def definir_senha(self, senha):
         self.senha_hash = make_password(senha)
@@ -145,3 +147,19 @@ class AdicaoPontos(models.Model):
         verbose_name = 'Adição de Pontos'
         verbose_name_plural = 'Adições de Pontos'
         ordering = ['-criado_em']
+
+
+class HistoricoMensal(models.Model):
+    """Guarda o resultado final de cada funcionário ao virar o mês."""
+    funcionario = models.ForeignKey(
+        Funcionario, on_delete=models.CASCADE, related_name='historico'
+    )
+    mes_ano = models.CharField(max_length=7)  # formato "2026-06"
+    pontos_finais = models.IntegerField()
+    meta = models.IntegerField()
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Histórico Mensal'
+        verbose_name_plural = 'Históricos Mensais'
+        ordering = ['-mes_ano']

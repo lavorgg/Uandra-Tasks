@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
-from .models import Funcionario, Tarefa, TarefaRecorrente, RemocaoPontos, AdicaoPontos
+from .models import Funcionario, Tarefa, TarefaRecorrente, RemocaoPontos, AdicaoPontos, HistoricoMensal
 
 
 def login_view(request):
@@ -53,8 +53,32 @@ def _requer_login(request):
     f = _funcionario_logado(request)
     if not f:
         return None, redirect('login')
+    _resetar_pontos_mensal(f)
     return f, None
 
+
+def _resetar_pontos_mensal(funcionario):
+    """Zera os pontos e a meta do funcionário quando o mês vira, guardando o resultado anterior no histórico."""
+    from django.utils.timezone import localtime, now
+    mes_atual = localtime(now()).strftime('%Y-%m')
+
+    if funcionario.mes_referencia == mes_atual:
+        return
+
+    # Só registra histórico se já existia um mês anterior de referência
+    # (evita zerar pontos na primeira vez que essa função roda para contas antigas)
+    if funcionario.mes_referencia:
+        HistoricoMensal.objects.create(
+            funcionario=funcionario,
+            mes_ano=funcionario.mes_referencia,
+            pontos_finais=funcionario.pontos,
+            meta=funcionario.meta_mensal,
+        )
+        funcionario.pontos = 0
+        funcionario.meta_mensal = 100
+
+    funcionario.mes_referencia = mes_atual
+    funcionario.save()
 
 def _requer_gerente(request):
     f, r = _requer_login(request)
@@ -184,8 +208,12 @@ def relatorio_view(request):
         aceita_por=f, status='finalizada',
         finalizado_em__year=hoje.year, finalizado_em__month=hoje.month
     )
-    remocoes  = RemocaoPontos.objects.filter(funcionario=f)
-    adicoes   = AdicaoPontos.objects.filter(funcionario=f)
+    remocoes = RemocaoPontos.objects.filter(
+        funcionario=f, criado_em__year=hoje.year, criado_em__month=hoje.month
+    )
+    adicoes = AdicaoPontos.objects.filter(
+        funcionario=f, criado_em__year=hoje.year, criado_em__month=hoje.month
+    )
     total_removido   = sum(r.pontos_removidos for r in remocoes)
     total_adicionado = sum(a.pontos_adicionados for a in adicoes)
     return render(request, 'relatorio.html', {
