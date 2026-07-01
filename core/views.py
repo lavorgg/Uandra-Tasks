@@ -63,10 +63,9 @@ def _resetar_pontos_mensal(funcionario):
     mes_atual = localtime(now()).strftime('%Y-%m')
 
     if funcionario.mes_referencia == mes_atual:
-        return
+        return  # já está no mês certo, nada a fazer
 
-    # Só registra histórico se já existia um mês anterior de referência
-    # (evita zerar pontos na primeira vez que essa função roda para contas antigas)
+    # Registra histórico apenas se já existia um mês anterior salvo
     if funcionario.mes_referencia:
         HistoricoMensal.objects.create(
             funcionario=funcionario,
@@ -74,11 +73,18 @@ def _resetar_pontos_mensal(funcionario):
             pontos_finais=funcionario.pontos,
             meta=funcionario.meta_mensal,
         )
-        funcionario.pontos = 0
-        funcionario.meta_mensal = 100
 
+    # Sempre reseta ao entrar em um mês novo, mesmo na primeira execução
+    funcionario.pontos = 0
+    funcionario.meta_mensal = 100
     funcionario.mes_referencia = mes_atual
     funcionario.save()
+
+
+def _resetar_todos_funcionarios():
+    """Aplica o reset mensal em todos os funcionários ativos, não só em quem logou."""
+    for f in Funcionario.objects.filter(ativo=True):
+        _resetar_pontos_mensal(f)
 
 def _requer_gerente(request):
     f, r = _requer_login(request)
@@ -466,6 +472,7 @@ def gerente_relatorio_view(request):
     g, r = _requer_gerente(request)
     if not g:
         return r
+    _resetar_todos_funcionarios()
     funcionarios = Funcionario.objects.filter(ativo=True, cargo='funcionario')
     hoje = timezone.now()
     dados = []
@@ -486,7 +493,6 @@ def gerente_relatorio_view(request):
         'dados_funcionarios': json.dumps(dados),
         'funcionarios': funcionarios,
     })
-
 
 @require_POST
 def remover_pontos(request):
